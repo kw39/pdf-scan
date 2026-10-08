@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Remove names, numbers, logos and QR codes from PDFs on your own computer. Review every change, then export a clean copy.">
+<title>PDF Scan</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/bricolage-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/style.css">
+<script src="/i18n.js" defer></script>
+<script src="/app.js" defer></script>
+</head>
+<body data-view="landing">
+<a class="skip" href="#main" data-i18n="skip">Skip to content</a>
+
+<header class="bar">
+  <a class="mark" href="/" aria-label="PDF Scan">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="6" y="3" width="20" height="26" rx="2" class="mark-page"/><path d="M10 9h12M10 23h8" class="mark-line"/><rect x="3" y="13" width="26" height="6" rx="1" class="mark-tape" transform="rotate(-6 16 16)"/></svg>
+    <span>PDF Scan</span>
+  </a>
+  <div class="doc-title" id="doc-title" hidden>
+    <button type="button" class="file-switch" id="file-switch" popovertarget="file-menu" aria-haspopup="dialog" data-i18n-title="files.switch" title="Files in this set">
+      <strong id="filename"></strong>
+      <span id="filedetail"></span>
+      <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg>
+    </button>
+  </div>
+  <div class="file-menu" id="file-menu" popover aria-labelledby="file-menu-h">
+    <div class="fm-head"><h2 id="file-menu-h" data-i18n="files.h">Files</h2><span id="fm-count"></span></div>
+    <ol class="fm-list" id="file-list"></ol>
+    <div class="fm-foot">
+      <label class="pill upload" id="add-files-label"><input id="add-files" type="file" accept=".pdf,application/pdf" multiple><span data-i18n="files.add">Add PDFs</span></label>
+      <span class="fm-hint" data-i18n="files.hint">Find settings apply to every file. Up to 50 files.</span>
+    </div>
+  </div>
+  <ol class="flow" id="flow" aria-label="Progress" hidden>
+    <li data-step="find"><button type="button" data-tab="find"><span class="flow-dot"></span><span data-i18n="tab.find">Find</span></button></li>
+    <li data-step="review"><button type="button" data-tab="review"><span class="flow-dot"></span><span data-i18n="tab.review">Review</span></button></li>
+    <li data-step="export"><button type="button" data-tab="export"><span class="flow-dot"></span><span data-i18n="tab.export">Export</span></button></li>
+  </ol>
+  <div class="bar-actions">
+    <button type="button" class="quiet-button" id="shortcuts-open" aria-haspopup="dialog" data-i18n-title="shortcuts.title" title="Keyboard shortcuts"><kbd>?</kbd></button>
+    <button type="button" class="quiet-button" id="lang" lang="zh-Hant" data-i18n-aria="lang.aria" aria-label="切換至繁體中文">中文</button>
+    <button type="button" class="quiet-button icon" id="theme" data-i18n-aria="theme.aria" aria-label="Switch colour theme">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="M10 3.5a6.5 6.5 0 0 0 0 13z" class="fill"/></svg>
+    </button>
+    <button type="button" class="quiet-button" id="clear" hidden data-i18n-title="clear.tip" title="Close the document and delete its local files">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg><span data-i18n="clear">Close and delete</span></button>
+  </div>
+</header>
+
+<main id="main">
+  <!-- Landing: one viewport, one action. -->
+  <section class="landing" id="landing" aria-labelledby="landing-title">
+    <div class="landing-copy">
+      <h1 id="landing-title" data-i18n="landing.title">Take the private details out of any&nbsp;PDF.</h1>
+      <p class="specimen" aria-hidden="true">
+        <span data-i18n="specimen.a">Report prepared by</span>
+        <span class="tape" style="--d:0" data-i18n="specimen.name">Ms&nbsp;Chan Tai-man</span>
+        <span data-i18n="specimen.b">for</span>
+        <span class="tape" style="--d:1" data-i18n="specimen.org">Northstar Studio&nbsp;Ltd.</span>
+        <span data-i18n="specimen.c">Questions? Call</span>
+        <span class="tape" style="--d:2">+852&nbsp;2345&nbsp;6789</span>
+      </p>
+      <p class="lede" data-i18n="landing.lede">Names, phone and ID numbers, logos and QR codes are found for you, on typed and scanned pages. You check every change, then export a clean copy. Nothing leaves this computer.</p>
+    </div>
+    <div class="landing-action">
+      <label class="drop" id="dropzone">
+        <input type="file" id="file" accept=".pdf,application/pdf" multiple>
+        <span class="crop" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span class="drop-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M14 6h14l10 10v26H14z"/><path d="M28 6v10h10"/><path d="M26 36V22m-6 6 6-6 6 6"/></svg></span>
+        <strong data-i18n="drop.title">Drop PDFs here</strong>
+        <span class="drop-sub" data-i18n="drop.sub">or choose one or more files from this computer</span>
+        <span class="drop-limit" data-i18n="drop.limit">Up to 50 files, each up to 50 MB and 500 pages</span>
+      </label>
+      <button type="button" class="text-link" id="demo" data-i18n="demo">Try it with a sample document</button>
+    </div>
+    <ul class="facts">
+      <li><h2 data-i18n="fact1.h">Stays on this computer</h2><p data-i18n="fact1.p">A small app on your machine reads the PDF. No account, no upload, no tracking.</p></li>
+      <li><h2 data-i18n="fact2.h">You approve every change</h2><p data-i18n="fact2.p">Each proposal is marked on the page. Restore a false match with one click, or draw your own.</p></li>
+      <li><h2 data-i18n="fact3.h">Hidden text can’t leak</h2><p data-i18n="fact3.p">Exports are rebuilt from the cleaned image, so text under a box, metadata, links and attachments are gone.</p></li>
+    </ul>
+  </section>
+
+  <!-- Workspace -->
+  <section class="workspace" id="workspace" hidden aria-label="Document workspace">
+    <nav class="rail" aria-label="Pages" data-i18n-aria="rail.aria"><ol id="thumbs"></ol></nav>
+
+    <section class="table" aria-label="Page view" data-i18n-aria="table.aria">
+      <div class="table-bar">
+        <div class="seg tools" role="toolbar" aria-label="Page tools" data-i18n-aria="tools.aria">
+          <button type="button" class="tool" data-mode="inspect" aria-pressed="true" data-i18n-title="tool.inspect.tip" title="Inspect proposals (V)">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 3l11 6-5 1.5L8 16z"/></svg><span data-i18n="tool.inspect">Inspect</span></button>
+          <button type="button" class="tool" data-mode="remove" aria-pressed="false" data-i18n-title="tool.remove.tip" title="Draw an area to remove (R)">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="6" width="14" height="8" rx="1" class="fill"/></svg><span data-i18n="tool.remove">Remove area</span></button>
+          <button type="button" class="tool" data-mode="keep" aria-pressed="false" data-i18n-title="tool.keep.tip" title="Draw an area to keep (K)">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="6" width="14" height="8" rx="1" stroke-dasharray="2 2"/><path d="M7.5 10l2 2 3.5-4"/></svg><span data-i18n="tool.keep">Keep area</span></button>
+          <button type="button" class="tool" data-mode="image" aria-pressed="false" data-i18n-title="tool.image.tip" title="Pick a repeated image (I)">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="12" rx="1.5"/><path d="M3 13l4-4 3 3 2-2 5 5"/><circle cx="13" cy="8" r="1.4" class="fill"/></svg><span data-i18n="tool.image">Pick image</span></button>
+        </div>
+        <div class="seg views" role="radiogroup" aria-label="View" data-i18n-aria="views.aria">
+          <button type="button" role="radio" data-view="original" aria-checked="true" data-i18n="view.original">Original</button>
+          <button type="button" role="radio" data-view="compare" aria-checked="false" data-i18n="view.compare">Compare</button>
+          <button type="button" role="radio" data-view="result" aria-checked="false" data-i18n="view.result">Result</button>
+        </div>
+      </div>
+
+      <div class="mat" id="mat">
+        <div class="ruler ruler-x" aria-hidden="true"></div>
+        <div class="ruler ruler-y" aria-hidden="true"></div>
+        <div class="sheet-wrap">
+          <div class="sheet" id="sheet">
+            <img id="original" alt="" draggable="false">
+            <div class="result-layer" id="result-layer" hidden><img id="candidate" alt="" draggable="false"><div class="ghosts" id="ghosts" aria-hidden="true"></div></div>
+            <div class="overlays" id="overlays"></div>
+            <div class="drawing" id="drawing" hidden></div>
+            <div class="kbd-cursor" id="kbd-cursor" hidden aria-hidden="true"></div>
+            <div class="removed-veil" id="removed-veil" hidden><span data-i18n="page.removedVeil">Removed from the export</span></div>
+            <div class="stale-veil" id="stale-veil" hidden><p data-i18n="page.stale">The result is out of date.</p><button type="button" class="pill" data-action="preview" data-i18n="preview.build">Build preview</button></div>
+            <span class="compare-label left" id="label-original" data-i18n="view.original" aria-hidden="true">Original</span>
+            <span class="compare-label right" id="label-result" data-i18n="view.result" aria-hidden="true">Result</span>
+            <button type="button" class="handle" id="handle" hidden data-i18n-aria="compare.handle" aria-label="Drag to compare original and result"><span></span></button>
+            <div class="scan" id="scan" hidden aria-hidden="true"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pager">
+        <div class="history">
+          <button type="button" class="icon-button" id="undo" data-i18n-aria="undo" aria-label="Undo" data-i18n-title="undo.tip" title="Undo (Ctrl+Z)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 5L3 9l4 4"/><path d="M3 9h9a5 5 0 0 1 0 10h-2"/></svg></button>
+          <button type="button" class="icon-button" id="redo" data-i18n-aria="redo" aria-label="Redo" data-i18n-title="redo.tip" title="Redo (Ctrl+Shift+Z)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M13 5l4 4-4 4"/><path d="M17 9H8a5 5 0 0 0 0 10h2"/></svg></button>
+        </div>
+        <div class="pager-mid">
+        <button type="button" class="icon-button" id="prev" data-i18n-aria="page.prev" aria-label="Previous page"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12 4l-6 6 6 6"/></svg></button>
+        <label class="pager-label"><span class="sr-only" data-i18n="page.go">Go to page</span><input id="page-input" inputmode="numeric" value="1" aria-describedby="page-total"><span id="page-total">/ 1</span></label>
+        <button type="button" class="icon-button" id="next" data-i18n-aria="page.next" aria-label="Next page"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 4l6 6-6 6"/></svg></button>
+        <button type="button" class="pill subtle" id="next-finding" data-i18n-title="page.nextFinding.tip" title="Next page with findings (N)"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="7" width="9" height="6" rx="1"/><path d="M14 6l4 4-4 4"/></svg><span data-i18n="page.nextFinding">Next page with findings</span></button>
+        </div>
+        <div class="zoom">
+          <button type="button" class="icon-button" id="zoom-out" data-i18n-aria="zoom.out" aria-label="Zoom out"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10h10"/></svg></button>
+          <button type="button" class="zoom-label" id="zoom-label" data-i18n-title="zoom.fit" title="Fit to width">100%</button>
+          <button type="button" class="icon-button" id="zoom-in" data-i18n-aria="zoom.in" aria-label="Zoom in"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10h10M10 5v10"/></svg></button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="inspector" aria-label="Inspector" data-i18n-aria="inspector.aria">
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" id="tab-find" aria-controls="panel-find" aria-selected="true" data-tab="find"><span data-i18n="tab.find">Find</span></button>
+        <button type="button" role="tab" id="tab-review" aria-controls="panel-review" aria-selected="false" data-tab="review"><span data-i18n="tab.review">Review</span><b class="count" id="review-count" hidden></b></button>
+        <button type="button" role="tab" id="tab-export" aria-controls="panel-export" aria-selected="false" data-tab="export"><span data-i18n="tab.export">Export</span></button>
+        <span class="tab-ink" aria-hidden="true"></span>
+      </div>
+
+      <!-- FIND -->
+      <div class="panel" role="tabpanel" id="panel-find" aria-labelledby="tab-find">
+        <div class="panel-body">
+          <h2 data-i18n="find.h">What should come out?</h2>
+          <label class="field">
+            <span class="field-name" data-i18n="find.targets">Words and names</span>
+            <textarea id="targets" rows="4" spellcheck="false" data-i18n-placeholder="find.targets.ph" placeholder="One per line, for example&#10;Chan Tai-man&#10;Northstar Studio Ltd."></textarea>
+            <span class="field-hint" data-i18n="find.targets.hint">Add other spellings on their own lines. Finds whole words, including parts of codes: ACME is found in INV-ACME-2026.</span>
+          </label>
+
+          <fieldset class="field">
+            <legend class="field-name" data-i18n="find.also">Also look for</legend>
+            <div class="chips">
+              <label class="chip"><input type="checkbox" id="email"><span><svg class="tick" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg><span data-i18n="chip.email">Email addresses</span></span></label>
+              <label class="chip"><input type="checkbox" id="phone"><span><svg class="tick" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg><span data-i18n="chip.phone">Phone numbers</span></span></label>
+              <label class="chip"><input type="checkbox" id="ids"><span><svg class="tick" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg><span data-i18n="chip.ids">ID numbers</span></span></label>
+              <label class="chip"><input type="checkbox" id="cards"><span><svg class="tick" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg><span data-i18n="chip.cards">Card numbers</span></span></label>
+              <label class="chip"><input type="checkbox" id="urls"><span><svg class="tick" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg><span data-i18n="chip.urls">Web links</span></span></label>
+              <label class="chip"><input type="checkbox" id="qr"><span><svg class="tick" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg><span data-i18n="chip.qr">QR codes</span></span></label>
+              <label class="chip"><input type="checkbox" id="auto-logos"><span><svg class="tick" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg><span data-i18n="chip.logos">Logos (best guess)</span></span></label>
+            </div>
+            <span class="field-hint" data-i18n="find.also.hint">ID numbers cover HKID, Taiwan, mainland China and US formats, checked by their check digit.</span>
+          </fieldset>
+
+          <details class="fold">
+            <summary data-i18n="find.logo.h">Find a specific logo</summary>
+            <div class="fold-body">
+              <p class="field-hint" data-i18n="find.logo.p">Upload a tightly cropped picture of the logo. Similar artwork is found at any size and right-angle rotation, including on scans.</p>
+              <label class="pill upload" id="logo-upload-label"><input id="logo-file" type="file" accept="image/png,image/jpeg,image/webp"><span data-i18n="find.logo.upload">Choose logo image</span></label>
+              <div class="logo-ref" id="logo-reference" hidden><img id="logo-thumbnail" alt=""><span id="logo-name"></span><button type="button" class="text-link" id="clear-logo" data-i18n="find.logo.remove">Remove</button></div>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary data-i18n="find.reading">Reading and matching</summary>
+            <div class="fold-body">
+              <label class="switch"><input id="ocr" type="checkbox" checked><span data-i18n="opt.ocr">Read text in scans and images (OCR)</span></label>
+              <span class="field-hint" data-i18n="opt.ocr.p">Reads English and Chinese, including text inside tables and pages scanned sideways.</span>
+              <div class="pair">
+                <label class="field"><span class="field-name" data-i18n="opt.lang">Language</span>
+                  <select id="languages"><option value="eng+chi_tra">English + 繁體中文</option><option value="eng">English</option><option value="chi_tra">繁體中文</option></select></label>
+                <label class="field"><span class="field-name" data-i18n="opt.scope">Look in</span>
+                  <select id="scope"><option value="all" data-i18n="opt.scope.all">Whole page</option><option value="header" data-i18n="opt.scope.header">Top quarter</option><option value="footer" data-i18n="opt.scope.footer">Bottom quarter</option></select></label>
+              </div>
+              <label class="switch"><input id="flexible" type="checkbox" checked><span data-i18n="opt.flexible">Ignore punctuation and spacing</span></label>
+              <label class="switch"><input id="case" type="checkbox"><span data-i18n="opt.case">Match upper and lower case</span></label>
+              <label class="field"><span class="field-name" data-i18n="opt.preset">Document type</span>
+                <select id="preset"><option value="generic" data-i18n="opt.preset.generic">Any document</option><option value="exam" data-i18n="opt.preset.exam">Exam or test paper (also suggests crests and instruction pages)</option></select></label>
+              <label class="switch"><input id="force" type="checkbox"><span data-i18n="opt.force">Read scans again instead of reusing earlier results</span></label>
+            </div>
+          </details>
+
+          <div class="rule-files">
+            <button type="button" class="text-link" id="save-rules" data-i18n="rules.save">Save these settings</button>
+            <label class="text-link"><input id="load-rules" type="file" accept=".json,application/json"><span data-i18n="rules.load">Load settings</span></label>
+          </div>
+        </div>
+        <div class="panel-foot">
+          <button type="button" class="primary" id="detect" disabled><span data-i18n="find.go">Find on every page</span></button>
+        </div>
+      </div>
+
+      <!-- REVIEW -->
+      <div class="panel" role="tabpanel" id="panel-review" aria-labelledby="tab-review" hidden>
+        <div class="panel-body">
+          <p class="empty-note" id="review-empty" data-i18n="review.empty">Run Find first. Proposals appear here, grouped by what was found.</p>
+          <div id="review-content" hidden>
+            <h2 id="review-summary"></h2>
+            <ul class="groups" id="groups"></ul>
+            <div class="page-head">
+              <h3 id="page-heading"></h3>
+              <label class="switch small"><input type="checkbox" id="drop-page"><span data-i18n="review.dropPage">Leave this page out</span></label>
+            </div>
+            <section class="box-editor" id="box-editor" aria-labelledby="be-title" hidden>
+              <div class="be-head">
+                <span class="tag" id="be-tag" aria-hidden="true"></span>
+                <div class="be-name"><h4 id="be-title"></h4><small id="be-meta"></small></div>
+                <button type="button" class="text-link" id="be-done" data-i18n="edit.done">Done</button>
+              </div>
+              <div class="be-scope" id="be-scope" role="group" aria-labelledby="be-scope-label">
+                <span class="field-name" id="be-scope-label" data-i18n="edit.scope">Apply changes to</span>
+                <div class="seg">
+                  <button type="button" id="be-scope-one" aria-pressed="true" data-i18n="edit.one">This box</button>
+                  <button type="button" id="be-scope-group" aria-pressed="false"><span id="be-scope-group-text"></span></button>
+                </div>
+              </div>
+              <div class="be-grid">
+                <label class="be-field"><span data-i18n="edit.left">Left</span><span class="be-input"><input id="be-left" type="number" inputmode="decimal" step="0.5" min="0"><i>mm</i></span></label>
+                <label class="be-field"><span data-i18n="edit.top">Top</span><span class="be-input"><input id="be-top" type="number" inputmode="decimal" step="0.5" min="0"><i>mm</i></span></label>
+                <label class="be-field"><span data-i18n="edit.width">Width</span><span class="be-input"><input id="be-width" type="number" inputmode="decimal" step="0.5" min="0.5"><i>mm</i></span></label>
+                <label class="be-field"><span data-i18n="edit.height">Height</span><span class="be-input"><input id="be-height" type="number" inputmode="decimal" step="0.5" min="0.5"><i>mm</i></span></label>
+              </div>
+              <div class="be-actions">
+                <span class="be-pad" role="group" aria-labelledby="be-pad-label">
+                  <span id="be-pad-label" data-i18n="edit.pad">Every side</span>
+                  <button type="button" class="mini" id="be-shrink" data-i18n-aria="edit.shrink.a" aria-label="Shrink every side by 0.5 mm"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h9"/></svg></button>
+                  <button type="button" class="mini" id="be-grow" data-i18n-aria="edit.grow.a" aria-label="Grow every side by 0.5 mm"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h9M8 3.5v9"/></svg></button>
+                </span>
+                <button type="button" class="text-link" id="be-reset"></button>
+                <button type="button" class="text-link danger-link" id="be-delete" data-i18n="item.delete" hidden>Delete</button>
+              </div>
+              <p class="field-hint" id="be-hint"></p>
+            </section>
+            <ul class="items" id="detections"></ul>
+            <div class="warnings" id="page-warnings"></div>
+            <label class="field">
+              <span class="field-name" data-i18n="review.pages">Pages to leave out</span>
+              <input id="remove-pages" type="text" data-i18n-placeholder="review.pages.ph" placeholder="For example 2, 5–7" aria-describedby="remove-pages-summary remove-pages-error">
+              <span class="field-error" id="remove-pages-error" role="alert" hidden></span>
+              <span class="field-hint" id="remove-pages-summary"></span>
+            </label>
+            <p class="field-hint" id="selected-images"></p>
+          </div>
+        </div>
+        <div class="panel-foot">
+          <button type="button" class="primary" data-action="preview" id="preview" disabled><span data-i18n="preview.build">Build preview</span></button>
+        </div>
+      </div>
+
+      <!-- EXPORT -->
+      <div class="panel" role="tabpanel" id="panel-export" aria-labelledby="tab-export" hidden>
+        <div class="panel-body">
+          <h2 data-i18n="export.h">How should the copy look?</h2>
+          <fieldset class="field">
+            <legend class="field-name" data-i18n="export.fill">Removed areas</legend>
+            <div class="swatches">
+              <label class="swatch"><input type="radio" name="fill" value="white" checked><span class="swatch-art white" aria-hidden="true"><i></i><i></i><i></i></span><span><b data-i18n="fill.white">White</b><small data-i18n="fill.white.p">Blends in, like correction tape. Good for copies that will be reused or reprinted.</small></span></label>
+              <label class="swatch"><input type="radio" name="fill" value="black"><span class="swatch-art black" aria-hidden="true"><i></i><i></i><i></i></span><span><b data-i18n="fill.black">Black</b><small data-i18n="fill.black.p">Shows readers something was removed. Usual for legal and HR.</small></span></label>
+            </div>
+          </fieldset>
+          <fieldset class="field">
+            <legend class="field-name" data-i18n="export.file">File</legend>
+            <label class="switch"><input type="checkbox" id="searchable"><span data-i18n="opt.searchable">Make text searchable and check for leftovers</span></label>
+            <span class="field-hint" data-i18n="opt.searchable.p">Reads the cleaned pages again, adds selectable text, and warns if any of your words can still be read. Slower.</span>
+            <label class="switch"><input type="checkbox" id="compact"><span data-i18n="opt.compact">Smaller file</span></label>
+            <span class="field-hint" data-i18n="opt.compact.p">Uses JPEG images. Best for scans and photos.</span>
+          </fieldset>
+
+          <section class="batch-box" id="batch-box" aria-labelledby="batch-h" hidden>
+            <h3 id="batch-h" data-i18n="batch.h">Files in this export</h3>
+            <ol class="batch-list" id="batch-files"></ol>
+            <div class="alert" id="batch-warn" hidden></div>
+          </section>
+          <div class="result-box" id="result-box" hidden>
+            <div class="meter" id="seen-meter"><span id="seen-bar"></span></div>
+            <p id="seen-text"></p>
+            <button type="button" class="text-link" id="next-unseen" data-i18n="export.nextUnseen">Show the next page you haven’t checked</button>
+            <div class="alert" id="residual" hidden></div>
+          </div>
+          <div class="download" id="download-box" hidden>
+            <a class="download-link" id="download-clean" href="#" download>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg>
+              <span><b id="download-name"></b><small id="download-meta"></small></span>
+            </a>
+          </div>
+          <button type="button" class="text-link" id="report" disabled data-i18n="export.report">Download private report (contains the matched text)</button>
+        </div>
+        <div class="panel-foot two">
+          <button type="button" class="secondary" data-action="preview" id="preview-2" disabled><span data-i18n="preview.build">Build preview</span></button>
+          <button type="button" class="primary" id="export" disabled><span data-i18n="export.go">Export clean PDF</span></button>
+        </div>
+      </div>
+    </aside>
+  </section>
+</main>
+
+<div class="progress" id="progress" hidden role="status" aria-live="polite">
+  <div class="progress-track"><span id="progress-bar"></span></div>
+  <p id="progress-text"></p>
+  <button type="button" class="text-link" id="cancel" data-i18n="cancel">Cancel</button>
+</div>
+<div class="toast" id="notice" role="status" aria-live="polite" hidden></div>
+
+<dialog class="shortcuts confirm" id="confirm-delete" aria-labelledby="confirm-delete-h">
+  <h2 id="confirm-delete-h" data-i18n="confirm.h">Close and delete this document?</h2>
+  <p data-i18n="confirm.p">The copy, scan results and previews kept by PDF Scan are deleted from this computer. The PDF you opened is not touched.</p>
+  <div class="confirm-actions">
+    <button type="button" class="secondary" data-close data-i18n="cancel">Cancel</button>
+    <button type="button" class="danger" id="confirm-delete-yes" data-i18n="confirm.yes">Close and delete</button>
+  </div>
+</dialog>
+
+<dialog class="shortcuts confirm" id="confirm-export" aria-labelledby="confirm-export-h" aria-describedby="confirm-export-p">
+  <h2 id="confirm-export-h" data-i18n="cx.h">Export before checking every page?</h2>
+  <p id="confirm-export-p"></p>
+  <div class="confirm-actions">
+    <button type="button" class="secondary" data-close data-i18n="cx.check">Keep checking</button>
+    <button type="button" class="primary" id="confirm-export-yes" data-i18n="cx.yes">Export anyway</button>
+  </div>
+</dialog>
+
+<dialog class="shortcuts" id="shortcuts">
+  <h2 data-i18n="shortcuts.title">Keyboard shortcuts</h2>
+  <dl>
+    <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd data-i18n="sc.pages">Previous / next page</dd>
+    <dt><kbd>N</kbd></dt><dd data-i18n="sc.next">Next page with findings</dd>
+    <dt><kbd>[</kbd> <kbd>]</kbd></dt><dd data-i18n="sc.files">Previous / next file</dd>
+    <dt><kbd>V</kbd> <kbd>R</kbd> <kbd>K</kbd> <kbd>I</kbd></dt><dd data-i18n="sc.tools">Inspect, remove area, keep area, pick image</dd>
+    <dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></dt><dd data-i18n="sc.views">Original, compare, result</dd>
+    <dt><kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd></dt><dd data-i18n="sc.zoom">Zoom in, out, fit</dd>
+    <dt><kbd>Ctrl</kbd> <kbd>Z</kbd></dt><dd data-i18n="sc.undo">Undo (add Shift to redo)</dd>
+    <dt><kbd>↵</kbd></dt><dd data-i18n="sc.draw">With Remove or Keep area: focus the page, move with arrows, press Enter at two corners</dd>
+    <dt><kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd></dt><dd data-i18n="sc.edit">With a box selected: move it (Shift for bigger steps, Alt to resize)</dd>
+    <dt><kbd>Esc</kbd></dt><dd data-i18n="sc.esc">Stop drawing, deselect a box, close this panel</dd>
+  </dl>
+  <button type="button" class="secondary" data-close data-i18n="close">Close</button>
+</dialog>
+</body>
+</html>

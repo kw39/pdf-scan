@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdfscan-local"
+version = "0.2.0"
+description = "Remove private details from PDFs on your own computer: find, review and export a clean, image-only copy"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "LICENSES/*.txt", "pdfscan/web/fonts/OFL.txt"]
+keywords = ["pdf", "redaction", "privacy", "ocr", "anonymization", "local-first"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Web Environment",
+  "Intended Audience :: End Users/Desktop",
+  "Natural Language :: English",
+  "Natural Language :: Chinese (Traditional)",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Office/Business",
+  "Topic :: Security",
+]
+dependencies = ["PyMuPDF==1.26.7", "Pillow>=11,<13", "opencv-python-headless>=4.10,<5", "numpy>=1.24", "onnxruntime>=1.18,<2"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "build>=1,<2"]
+
+[project.scripts]
+pdfscan = "pdfscan.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["pdfscan*"]
+
+[tool.setuptools.package-data]
+pdfscan = ["data/*.json", "web/*.html", "web/*.css", "web/*.js", "web/*.svg", "web/fonts/*.woff2", "web/fonts/*.txt"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,7 @@
+include LICENSE README.md SECURITY.md THIRD_PARTY_NOTICES.md CHANGELOG.md requirements.txt
+recursive-include LICENSES *.txt
+recursive-include pdfscan/data *.json
+recursive-include pdfscan/web *.html *.css *.js *.svg *.woff2 *.txt
+recursive-include examples *.json
+recursive-include scripts *.py
+include Setup.ps1 Start.ps1 start.cmd

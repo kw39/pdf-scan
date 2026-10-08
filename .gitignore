@@ -1,0 +1,37 @@
+# Private local documents, OCR data, reports and environments
+.runtime/
+.venv/
+venv/
+.env
+.env.*
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+releases/
+*.pdf
+*.png
+!docs/screenshots/*.png
+*.jpg
+*.zip
+*.log
+*.sha256
+
+
+# Personal assistant notes and staging folders
+CLAUDE.md
+github-files-to-move/
+
+# Local assistant and editor settings
+AGENTS.md
+.codex/
+.agents/
+.claude/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

@@ -1,0 +1,12 @@
+{
+  "text": ["NORTHSTAR STUDIO", "示例機構", "hello@example.test"],
+  "caseSensitive": false,
+  "flexible": true,
+  "scope": "all",
+  "ocr": true,
+  "languages": "eng+chi_tra",
+  "preset": "generic",
+  "imageDigests": [],
+  "email": false,
+  "phone": false
+}

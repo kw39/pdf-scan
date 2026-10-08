@@ -1,0 +1,20 @@
+name: Feature request
+description: Suggest something that would help you prepare documents
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What are you trying to do?
+      description: Describe the document and the task, for example "remove student numbers from scanned worksheets".
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+  - type: dropdown
+    id: who
+    attributes:
+      label: Who are you preparing documents as?
+      options: [Teacher, Student, HR / legal / admin, Business, Other]
