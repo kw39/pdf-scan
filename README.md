@@ -102,12 +102,17 @@ The default PP-OCR reader handles English and Chinese together. If its models ar
 1. On **Find**, enable **Watermarks**. For school or company wording, enter the
    complete watermark text in **Words and names**, one spelling per line. Known
    scanner captions such as CamScanner and website labels are recognised without
-   adding a text target. Use **Pick image** for an embedded image watermark.
+   adding a text target. Repeated faint footer credits such as “Provided by
+   @examplehelper” are also recognised when they contain an explicit handle and
+   sit in the bottom 10% of at least two pages. Use **Pick image** for an embedded
+   image watermark.
 2. Run **Find**, then review proposals labelled **Separate watermark object** or
    **Separate image object**. PDF Scan verifies that removing an independent text
    paint or image/Form XObject leaves other visible text and graphics unchanged.
    A watermark inside a form split over several text operations is supported when
-   the complete form can be removed independently.
+   the complete form can be removed independently, including on dense pages.
+   Pages with more than 250 text paints still allow bounded form checks; unverified
+   individual text stays for manual review.
 3. Build the preview and compare the questions, diagrams and tables underneath.
    **Keep**, group controls, undo/redo and normal reviewed export still apply.
 
@@ -121,8 +126,9 @@ pixels, so suppressed watermark text is not copied from the original PDF.
 For flattened scans, OCR can propose removing a recognised scanner/domain caption
 only in an isolated white page margin. Broad text watermarks blended through scan
 content, mixed forms containing useful questions/graphics, unknown repeated
-publisher labels, PDF text clipping masks and unsupported objects stay intact with review warnings. Detection
-can miss marks; inspect every page. Watermarks alone do not cause page removal.
+publisher labels, PDF text clipping masks and unsupported objects stay intact with
+review warnings. Plain author credits remain warning-only. Detection can miss marks;
+inspect every page. Watermarks alone do not cause page removal.
 Normal occurrences of your entered words still produce ordinary text-box proposals.
 
 For CLI or saved rules, add `"watermarks": true` (see

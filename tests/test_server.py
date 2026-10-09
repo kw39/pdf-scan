@@ -155,10 +155,16 @@ def test_startup_removes_leftover_sessions(tmp_path):
     assert not stale.exists()
 
 
-def test_watermark_preview_keep_and_exact_export(server, tmp_path):
+@pytest.mark.parametrize('kind', ['form', 'dense', 'attribution'])
+def test_watermark_preview_keep_and_exact_export(server, tmp_path, kind):
     import pymupdf as fitz
-    from test_watermarks import document, samples
-    src=tmp_path/'watermark.pdf';reference,original=document(src)
+    from test_watermarks import document, dense_document, attribution_document, samples
+    src=tmp_path/'watermark.pdf'
+    if kind == 'attribution':
+        references, originals = attribution_document(src)
+        reference, original = references[0], originals[0]
+    else:
+        reference, original = (dense_document if kind == 'dense' else document)(src)
     job=server[0].create(src.read_bytes(),'Fictional watermark.pdf')
     prefix='/api/jobs/'+job['id']
     code,plan=call(server,prefix+'/detect','POST',{'config':{'watermarks':True,'text':['EXAMPLE SCHOOL'],'ocr':False}})

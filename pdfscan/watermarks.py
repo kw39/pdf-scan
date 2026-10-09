@@ -13,6 +13,7 @@ def compact(text):
 
 SCANNER = re.compile(r"\b(?:camscanner|adobe\s+scan|(?:microsoft|office)\s+lens|genius\s+scan|tiny\s+scanner|scanbot|scanner\s+pro|vflat|iscanner|turboscan)\b", re.I)
 DOMAIN = re.compile(r"(?:https?://|www\.)\S+|\b[a-z0-9][a-z0-9.-]+\.(?:com|org|net|edu|hk|io|app)(?:/\S*)?\b", re.I)
+ATTRIBUTION = re.compile(r'(?:provided|shared|uploaded|distributed)\s+by\s+(@?[a-z0-9][a-z0-9_.-]{2,63})', re.I)
 
 
 def groups(page):
@@ -69,6 +70,16 @@ def classify(page, spans, aliases, repeats):
     if DOMAIN.search(text) and (edge or (pale and (large or tilted))):
         if scanner_caption:
             return 'Website watermark', text
+    # Repeated faint footer credits are often small horizontal text. A strict
+    # complete attribution + explicit handle avoids matching question prose,
+    # ordinary page codes or author/source credits without a handle marker.
+    attribution = ATTRIBUTION.fullmatch(unicodedata.normalize('NFKC', text))
+    if (attribution and repeats[repeat_key(page, spans)] >= 2 and pale and
+            box[1] >= .90 and box[3] - box[1] <= .04):
+        handle = attribution[1]
+        if '_' in handle or handle.startswith('@') or DOMAIN.fullmatch(handle):
+            return 'Distributor watermark', text
+        return 'Possible publisher watermark', text
     if repeats[repeat_key(page, spans)] >= 2 and pale and (tilted or large):
         return 'Possible publisher watermark', text
     return None
@@ -191,13 +202,16 @@ def plan(page, aliases, repeats):
             raise ValueError('Watermark inspection budget exceeded')
         text_ops = text_operations(data)
         object_ops = text_operations(data, image=True)
-        if len(text_ops) > 250 or len(object_ops) > 80:
+        if len(object_ops) > 80:
             raise ValueError('Watermark inspection budget exceeded')
         # Form XObjects can contain an entire watermark split across several
         # text operators. Probe their page-level Do before individual text paints.
         # Accept only if exactly the candidate text disappears and all other
         # visible text and graphics remain identical; mixed-content forms fail.
-        ops = object_ops + text_ops
+        # Dense pages can still have a small independently removable form.
+        # Keep individual text probing bounded while checking page-level objects.
+        text_budget_exceeded = len(text_ops) > 250
+        ops = object_ops + ([] if text_budget_exceeded else text_ops)
         baseline, shapes = visible(target), graphics(target)
         xref = probe.get_new_xref()
         probe.update_object(xref, '<<>>')
@@ -217,6 +231,10 @@ def plan(page, aliases, repeats):
                     regions[index]['_operation'] = op
                     accepted.append(op)
                     break
+        if text_budget_exceeded and any('_operation' not in r and
+                                       not r['reason'].startswith('Possible') for r in regions):
+            warnings.append('Individual watermark text probing skipped: inspection budget exceeded; '
+                            'unverified objects retained for manual review.')
         probe.update_stream(xref, suppress(data, accepted))
         expected = baseline.copy()
         for index, (spans, _) in enumerate(candidates):

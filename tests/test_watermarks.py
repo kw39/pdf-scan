@@ -294,3 +294,156 @@ def test_text_clipping_retains_watermark_and_unrelated_pixels(tmp_path):
 
 def test_clipping_operator_text_inside_strings_is_not_an_operator():
     assert len(watermarks.text_operations(b'BT (4 Tr) Tj ET')) == 1
+
+
+
+def dense_document(path, *, form=True, mixed=None, copies=1, rotation=0):
+    """Many ordinary paints plus one independently verifiable watermark form."""
+    with fitz.open() as doc, fitz.open() as mark:
+        page = doc.new_page(width=595, height=842)
+        for index in range(1000):
+            page.insert_text((40 + index % 10 * 48, 40 + index // 10 * 7), '42', fontsize=6)
+        page.draw_rect(fitz.Rect(35, 30, 550, 750))
+        page.set_rotation(rotation)
+        reference = page.get_pixmap(dpi=200, alpha=False).samples
+        if form:
+            mp = mark.new_page(width=595, height=842)
+            mp.insert_text((50, 300), 'EXAMPLE SCHOOL', fontsize=32, color=(.7, .7, .7))
+            if mixed == 'text':
+                mp.insert_text((50, 380), 'Useful question inside the form')
+            if mixed == 'graphic':
+                mp.draw_rect(fitz.Rect(50, 350, 250, 400))
+            for _ in range(copies):
+                page.show_pdf_page(page.rect * page.derotation_matrix, mark, 0)
+        else:
+            page.insert_text((50, 300), 'EXAMPLE SCHOOL', fontsize=32, color=(.7, .7, .7))
+        original = page.get_pixmap(dpi=200, alpha=False).samples
+        doc.save(path)
+    return reference, original
+
+
+@pytest.mark.parametrize('copies,rotation', [(1, 0), (2, 0), (1, 90)])
+def test_dense_form_removal_preserves_question_pixels_and_keep(tmp_path, copies, rotation):
+    src = tmp_path / 'dense.pdf'
+    reference, original = dense_document(src, copies=copies, rotation=rotation)
+    before = engine.source_hash(src)
+    with fitz.open(src) as doc:
+        data = b'\n'.join(doc.xref_stream(x) for x in doc[0].get_contents())
+        assert len(watermarks.text_operations(data)) > 250
+    plan = engine.detect(src, CONFIG)
+    marks = plan['pages'][0]['detections']
+    assert len(marks) == 1 and marks[0]['method'] == 'watermark-text'
+    assert export(src, plan, tmp_path)[0] == reference
+    assert export(src, plan, tmp_path, {'ignored': [marks[0]['id']]})[0] == original
+    assert engine.source_hash(src) == before
+
+
+@pytest.mark.parametrize('form,mixed', [(False, None), (True, 'text'), (True, 'graphic')])
+def test_dense_unverified_text_and_mixed_forms_are_retained(tmp_path, form, mixed):
+    src = tmp_path / 'dense-retained.pdf'
+    _, original = dense_document(src, form=form, mixed=mixed)
+    plan = engine.detect(src, CONFIG)
+    assert not plan['pages'][0]['detections']
+    assert any('inspection budget exceeded' in warning for warning in plan['pages'][0]['warnings'])
+    assert export(src, plan, tmp_path)[0] == original
+
+
+@pytest.mark.parametrize('limit', ['objects', 'candidates', 'stream'])
+def test_form_verification_other_budgets_still_refuse(tmp_path, limit):
+    src = tmp_path / 'budget.pdf'
+    document(src)
+    with fitz.open(src) as doc:
+        page = doc[0]
+        data = b'\n'.join(doc.xref_stream(x) for x in page.get_contents())
+        if limit == 'objects':
+            data += b' /Missing Do' * 81
+        elif limit == 'stream':
+            data += b'\n%' + b'x' * 2_000_001
+        else:
+            for index in range(13):
+                page.insert_text((50, 100 + index * 45), 'EXAMPLE SCHOOL', fontsize=28, color=(.7, .7, .7))
+            data = b'\n'.join(doc.xref_stream(x) for x in page.get_contents())
+        xref = doc.get_new_xref()
+        doc.update_object(xref, '<<>>')
+        doc.update_stream(xref, data)
+        page.set_contents(xref)
+        regions, candidates, warnings = watermarks.plan(page, CONFIG['text'], watermarks.repeated_labels(doc))
+        assert not regions and candidates
+        assert any('Watermark objects retained' in warning for warning in warnings)
+
+
+
+def attribution_document(path, *, label='Provided by example_share', y=800, opacity=.4,
+                         pages=2, mixed=False, fontsize=18, distinct_positions=False):
+    references, originals = [], []
+    with fitz.open() as doc, fitz.open() as mark:
+        for index in range(pages):
+            page = doc.new_page(width=595, height=842)
+            page.insert_text((40, 740), 'Question: explain diffusion. (3 marks)')
+            page.insert_text((40, 810), 'S4-BIO-1', fontsize=10)
+            page.draw_rect(fitz.Rect(40, 730, 350, 760))
+            references.append(page.get_pixmap(dpi=200, alpha=False).samples)
+            if mixed:
+                if not mark.page_count:
+                    mp = mark.new_page(width=595, height=842)
+                    mp.insert_text((250, y), label, fontsize=fontsize, fill_opacity=opacity)
+                    mp.insert_text((40, 400), 'Question inside the attribution form. (3 marks)')
+                page.show_pdf_page(page.rect, mark, 0)
+            else:
+                page.insert_text((250, y - index * 50 if distinct_positions else y), label,
+                                 fontsize=fontsize, fill_opacity=opacity)
+            originals.append(page.get_pixmap(dpi=200, alpha=False).samples)
+        doc.save(path)
+    return references, originals
+
+
+@pytest.mark.parametrize('label', ['Provided by example_share', 'Shared by @examplehelper',
+                                   'Uploaded by example.test.org', 'Distributed by example_share'])
+def test_repeated_attribution_footer_exact_export_and_decisions(tmp_path, label):
+    src = tmp_path / 'attribution.pdf'
+    references, originals = attribution_document(src, label=label)
+    config = {'watermarks': True, 'ocr': False}
+    before = engine.source_hash(src)
+    plan = engine.detect(src, config)
+    assert all(len(page['detections']) == 1 for page in plan['pages'])
+    mark = plan['pages'][0]['detections'][0]
+    assert mark['label'] == 'Distributor watermark' and mark['method'] == 'watermark-text'
+    assert '_operation' not in json.dumps(plan)
+    assert export(src, plan, tmp_path, {'output': {'fill': 'black'}})[0] == references[0]
+    with fitz.open(tmp_path / 'clean.pdf') as doc:
+        assert doc.page_count == 2
+        for index, page in enumerate(doc):
+            assert fitz.Pixmap(doc, page.get_images()[0][0]).samples == references[index]
+            assert not page.get_text() and not page.get_links() and not list(page.annots() or [])
+        assert not doc.get_toc() and not doc.embfile_count() and not doc.metadata['author']
+    assert export(src, plan, tmp_path, {'ignored': [mark['id']]})[0] == originals[0]
+    box = mark['rect']
+    protected = [box[0], box[1], (box[0] + box[2]) / 2, (box[1] + box[3]) / 2]
+    assert export(src, plan, tmp_path, {'protected': [{'page': 1, 'rect': protected}]})[0] == originals[0]
+    assert not any(p['detections'] for p in engine.detect(src, {'ocr': False})['pages'])
+    assert not any(p['detections'] for p in engine.detect(src, {**config, 'scope': 'header'})['pages'])
+    assert engine.source_hash(src) == before
+
+
+@pytest.mark.parametrize('options', [
+    {'y': 400}, {'opacity': 1}, {'pages': 1}, {'distinct_positions': True},
+    {'label': 'Explain the evidence provided by example_share.'},
+    {'label': 'Provided by example_share answer Question 2'}, {'label': 'S4-BIO-1'},
+    {'label': 'Copyright Example Publishing'}, {'mixed': True}, {'fontsize': 36},
+])
+def test_attribution_non_watermarks_and_mixed_forms_retained(tmp_path, options):
+    src = tmp_path / 'retained-attribution.pdf'
+    _, originals = attribution_document(src, **options)
+    plan = engine.detect(src, {'watermarks': True, 'ocr': False})
+    assert not any(page['detections'] for page in plan['pages'])
+    assert export(src, plan, tmp_path)[0] == originals[0]
+
+
+
+def test_plain_author_attribution_is_warning_only(tmp_path):
+    src = tmp_path / 'author.pdf'
+    _, originals = attribution_document(src, label='Provided by ExampleAuthor')
+    plan = engine.detect(src, {'watermarks': True, 'ocr': False})
+    assert not any(page['detections'] for page in plan['pages'])
+    assert any('Possible publisher watermark retained' in warning for warning in plan['pages'][0]['warnings'])
+    assert export(src, plan, tmp_path)[0] == originals[0]

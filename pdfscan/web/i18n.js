@@ -257,8 +257,9 @@
   const zhWarnings = [
     [/^.* can be removed as a separate PDF object;.*$/, "可移除獨立浮水印物件。請檢查預覽及底下內容。"],
     [/^.* can be removed from an isolated white scan margin;.*$/, "可移除獨立白色頁邊的掃描浮水印。請檢查頁尾。"],
-    [/^(?:Text watermark|Scanner-app watermark|Website watermark|Possible publisher watermark) retained for manual review:.*$/, "浮水印已保留，請手動檢查。"],
+    [/^(?:Text watermark|Scanner-app watermark|Website watermark|Distributor watermark|Possible publisher watermark) retained for manual review:.*$/, "浮水印已保留，請手動檢查。"],
     [/^Possible .* retained in scan\/content;.*$/, "可能有浮水印與掃描內容混合，已保留供手動檢查。"],
+    [/^Individual watermark text probing skipped:.*$/, "頁面文字較多，未能確認可安全移除的浮水印已保留供手動檢查。"],
     [/^Watermark objects retained:.*$/, "無法確認浮水印可安全移除，已保留供手動檢查。"],
     [/^OCR disabled/, "未開啟 OCR：圖片中的文字沒有檢查。"],
     [/^Scanned page/, "掃描頁：請仔細檢查 OCR 結果和圖案。"],
