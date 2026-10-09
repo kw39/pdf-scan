@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Fixed
+- Local assistant notes and internal planning documents are excluded from public source releases and package contents.
+- Watermark verification retains PDF text clipping masks instead of suppressing them, preventing object removal from altering unrelated graphics. Synthetic parser and pixel-preservation regressions cover the unsafe case.
+
+### Added
+- Opt-in watermark review/removal: independently verified native text and Form XObjects, picked embedded images, and isolated scanned scanner/domain footers. Preserves underlying content and existing Keep, protected areas, box edits, preview/export, batch and searchable-output behavior. Mixed/blended or uncertain marks stay for review. English/Traditional Chinese control and README/rules guidance included.
+
 ## 0.2.0 — 2026-10-08
 
 ### Added

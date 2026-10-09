@@ -1,0 +1,7 @@
+{
+  "text": ["EXAMPLE SCHOOL"],
+  "watermarks": true,
+  "ocr": true,
+  "scope": "all",
+  "preset": "generic"
+}

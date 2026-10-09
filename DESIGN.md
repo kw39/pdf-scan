@@ -2,6 +2,11 @@
 
 PDF Scan prepares documents for sharing. Its visual language comes from preparing paper by hand: pages lie on a **green cutting mat**, proposals are **highlighter marks**, and removals are **ink bars or correction tape**. Keep new screens inside this vocabulary.
 
+The opt-in **Watermarks** setting reuses the existing Find chips and review groups.
+Object-removal proposals retain the normal highlighter/Keep/preview flow. The hint
+explains that editing such a box switches to rectangle fill; do not present an object
+watermark's large bounds as a filled rectangle in the result itself.
+
 ## Users and main task
 
 Anyone who shares documents outside their circle: individuals sending CVs, agreements and forms; HR, legal and admin staff; companies and freelancers sharing drafts and reports; researchers and journalists de-identifying records; schools reusing papers. Copy and examples stay general (names, companies, invoice codes); school-specific help lives only in the optional "Exam or test paper" document type. Each one opens a PDF, finds private details, checks every proposal, and exports a clean copy. Accuracy and confidence matter more than speed, so the review surface (page, marks, list) gets most of the screen.

@@ -18,6 +18,7 @@ import pymupdf as fitz
 from PIL import Image, ImageDraw
 from . import ppocr
 from . import primitives as p
+from . import watermarks as w
 
 ENGINE = "pdfscan-raster-1"
 MAX_PAGES = 500
@@ -66,18 +67,18 @@ def validate_config(raw):
     if not isinstance(raw, dict):
         raise ValueError("Rules must be an object.")
     allowed = {"text", "caseSensitive", "flexible", "scope", "ocr", "languages", "preset",
-               "imageDigests", "email", "phone", "cards", "ids", "autoLogos", "urls", "qr", "logoSha256"}
+               "imageDigests", "email", "phone", "cards", "ids", "autoLogos", "urls", "qr", "watermarks", "logoSha256"}
     if set(raw) - allowed:
         raise ValueError("Unknown rule fields: " + ", ".join(sorted(set(raw) - allowed)))
     c = {"text": [], "caseSensitive": False, "flexible": True, "scope": "all",
          "ocr": True, "languages": "eng+chi_tra", "preset": "generic",
          "imageDigests": [], "email": False, "phone": False, "cards": False, "ids": False,
-         "autoLogos": False, "urls": False, "qr": False, "logoSha256": "", **raw}
+         "autoLogos": False, "urls": False, "qr": False, "watermarks": False, "logoSha256": "", **raw}
     if (not isinstance(c["text"], list) or len(c["text"]) > 100 or
             any(not isinstance(t, str) or not t.strip() or len(t) > 200 for t in c["text"])):
         raise ValueError("Provide at most 100 nonempty text targets, 200 characters each.")
     c["text"] = list(dict.fromkeys(t.strip() for t in c["text"]))
-    for k in ("caseSensitive", "flexible", "ocr", "email", "phone", "cards", "ids", "autoLogos", "urls", "qr"):
+    for k in ("caseSensitive", "flexible", "ocr", "email", "phone", "cards", "ids", "autoLogos", "urls", "qr", "watermarks"):
         if type(c[k]) is not bool:
             raise ValueError(k + " must be true or false.")
     if c["scope"] not in ("all", "header", "footer"):
@@ -251,7 +252,10 @@ def overlap(a, b):
 def add_detection(page_report, source_sha, rect, rule, label, method, matched=None, **extra):
     if not rect_valid(rect):
         return
-    if any(d["rule"] == rule and overlap(d["rect"], rect) > .65 for d in page_report["detections"]):
+    object_method = method in ('watermark-text', 'watermark-image')
+    if any(d['rule'] == rule and
+           (all(abs(a-b) < 1e-7 for a,b in zip(d['rect'],rect)) if object_method
+            else overlap(d['rect'],rect) > .65) for d in page_report['detections']):
         return
     identity = {"source": source_sha, "page": page_report["number"], "rule": rule,
                 "rect": [round(v, 5) for v in rect]}
@@ -495,6 +499,51 @@ def active_patterns(c):
     keys = [("url", "urls"), ("email", "email"), ("phone", "phone"), ("card", "cards"), ("id", "ids")]
     return [(label, *PATTERNS[label]) for label, option in keys if c[option]]
 
+def watermark_rule(region):
+    if region['reason'].startswith('Scanner-app'):
+        return 'watermark:scanner'
+    if region['reason'].startswith('Website'):
+        return 'watermark:website'
+    return 'watermark:text:' + fingerprint(w.compact(region['match']))[:16]
+
+
+def watermark_findings(page, config, repeats, words=()):
+    """Verified proposals and uncertain labels; PDF operation offsets stay private."""
+    regions, candidates, warnings = w.plan(page, config['text'], repeats)
+    margin, notes = w.ocr_footer_regions(page, words, candidates) if words else ([], [])
+    flattened = w.scan_text_candidates(page, words, config['text']) if words else []
+    warnings += notes
+    warnings += ['Possible text watermark retained in scan/content; inspect manually: ' + r['match']
+                 for r in flattened]
+    return ([r for r in [*regions, *margin] if in_scope(r['rect'], config['scope'])],
+            [*candidates, *flattened], warnings)
+
+
+def watermark_duplicate(detection, candidate):
+    """Avoid a box redaction for the same watermark identified by another rule."""
+    rule = detection['rule']
+    if not (rule.startswith('text:') or rule in ('pattern:url', 'pattern:hyperlink')):
+        return False
+    if overlap(detection['rect'], candidate['rect']) <= .1:
+        return False
+    label = candidate['match']
+    matched = w.compact(detection.get('matched') or '')
+    labels = {w.compact(label), *(w.compact(m.group()) for m in w.SCANNER.finditer(label))}
+    if matched in labels:
+        return True
+    if rule in ('pattern:url', 'pattern:hyperlink'):
+        def url_key(value):
+            return w.compact(re.sub(r'^(?:https?://)?(?:www\.)?', '', value, flags=re.I))
+        return url_key(detection.get('matched') or '') in {url_key(m.group()) for m in w.DOMAIN.finditer(label)}
+    return False
+
+
+def add_watermarks(report, sha, regions):
+    for region in regions:
+        add_detection(report, sha, region['rect'], watermark_rule(region), region['reason'],
+                      region['method'], region['match'])
+
+
 def detect(source, config, *, cache_dir=None, tessdata=None, force_ocr=False, logo_path=None, progress=None,
            models=None):
     """Create a review plan. ``progress(stage, done, total)`` may raise to cancel."""
@@ -520,6 +569,7 @@ def detect(source, config, *, cache_dir=None, tessdata=None, force_ocr=False, lo
     logo_digests = set()
     image_cache = {}
     with open_pdf(source) as doc:
+        repeats = w.repeated_labels(doc) if c["watermarks"] else {}
         for i, page in enumerate(doc):
             if progress:
                 progress("detect", i, len(doc))
@@ -527,6 +577,10 @@ def detect(source, config, *, cache_dir=None, tessdata=None, force_ocr=False, lo
                   "detections": [], "images": [], "removeProposed": False, "warnings": []}
             native = page.get_text("words", sort=False)
             ocr = cache.words(page) if cache else []
+            watermark_regions, watermark_candidates = [], []
+            if c["watermarks"]:
+                watermark_regions, watermark_candidates, notes = watermark_findings(page, c, repeats, ocr)
+                pr['warnings'].extend(notes)
             match_text(native, page, pr, sha, c, "text")
             if ocr:
                 match_text(ocr, page, pr, sha, c, "ocr")
@@ -554,6 +608,12 @@ def detect(source, config, *, cache_dir=None, tessdata=None, force_ocr=False, lo
                         d["rect"] = p.snap_to_ink(gray, d["rect"], parts)
                         d["id"] = fingerprint({"source": sha, "page": pr["number"], "rule": d["rule"],
                                                "rect": [round(v, 5) for v in d["rect"]]})[:24]
+            if c["watermarks"]:
+                # A text-target rectangle would hide questions under a watermark.
+                # Verified objects get their own review proposal; uncertain marks stay intact.
+                pr['detections'] = [d for d in pr['detections'] if not any(
+                    watermark_duplicate(d, r) for r in watermark_candidates)]
+                add_watermarks(pr, sha, watermark_regions)
             if not c["ocr"]:
                 pr["warnings"].append("OCR disabled: image text has not been checked.")
             elif not native:
@@ -624,6 +684,9 @@ def detect(source, config, *, cache_dir=None, tessdata=None, force_ocr=False, lo
                             logo_digests.add(digest)
                 if not native and heading:
                     propose_scan_clusters(page, [*native, *ocr], pr, sha)
+            if c['watermarks']:
+                pr['detections'] = [d for d in pr['detections'] if not any(
+                    watermark_duplicate(d,r) for r in watermark_candidates)]
             prepared.append((page.number, images))
             report["pages"].append(pr)
         known_images = {im["digest"] for pr in report["pages"] for im in pr["images"]}
@@ -635,9 +698,11 @@ def detect(source, config, *, cache_dir=None, tessdata=None, force_ocr=False, lo
             for info in images:
                 digest = info["digest"].hex()
                 if digest in selected or digest in logo_digests:
+                    object_region = w.image_plan(page, info) if c['watermarks'] else None
                     add_detection(pr, sha, normalized(info["bbox"], page),
                                   "image:" + digest, "Selected repeated image" if digest in selected else "Possible crest or heading logo",
-                                  "image-match", digest, heuristic=digest not in selected)
+                                  "watermark-image" if object_region else "image-match", digest,
+                                  heuristic=digest not in selected)
         if all(pr["removeProposed"] for pr in report["pages"]):
             for pr in report["pages"]:
                 pr["removeProposed"] = False
@@ -755,14 +820,18 @@ def validate_output(raw):
         raise ValueError("Invalid export options.")
     return o
 
-def cleaned_image(page, rects, protected=(), fill="white", drawn=()):
+def cleaned_image(page, rects, protected=(), fill="white", drawn=(), watermark_regions=()):
     """Fill boxes, restore Keep areas, then fill drawn areas that sit inside a Keep area.
 
     Nesting decides overlaps: a Keep area inside a drawn Remove area stays (remove all
     but this), and a Remove area drawn inside a Keep area is removed (keep all but this)."""
     pix = page.get_pixmap(dpi=render_dpi(page), alpha=False)
     original = Image.open(io.BytesIO(pix.tobytes("png"))).convert("RGB")
-    im = original.copy()
+    if watermark_regions:
+        pix = w.render(page, watermark_regions, render_dpi(page))
+        im = Image.open(io.BytesIO(pix.tobytes('png'))).convert('RGB')
+    else:
+        im = original.copy()
     draw = ImageDraw.Draw(im)
     def box(r):
         return (max(0, math.floor(r[0]*im.width)), max(0, math.floor(r[1]*im.height)),
@@ -884,6 +953,7 @@ def apply(source, plan, decisions, output, *, tessdata=None, progress=None, mode
     page_map, residual = [], []
     total = len(plan["pages"])
     with open_pdf(source) as doc, fitz.open() as public:
+        repeats = w.repeated_labels(doc) if plan['config'].get('watermarks') else {}
         for pr in plan["pages"]:
             num = pr["number"]
             if progress:
@@ -892,10 +962,45 @@ def apply(source, plan, decisions, output, *, tessdata=None, progress=None, mode
                 page_map.append({"original": num, "output": None})
                 continue
             page = doc[num-1]
-            rects = [d["adjusted"].get(r["id"], r["rect"]) for r in pr["detections"] if r["id"] not in ignored]
             drawn = [r["rect"] for r in d["manual"] if r["page"] == num]
             keep = [r["rect"] for r in d["protected"] if r["page"] == num]
-            im = cleaned_image(page, rects, keep, out["fill"], drawn)
+            rects, objects = [], []
+            active = [r for r in pr['detections'] if r['id'] not in ignored]
+            native_objects = [r for r in active if r['method'] == 'watermark-text'
+                              and r['id'] not in d['adjusted'] and not any(overlap(r['rect'], k) > 0 for k in keep)]
+            verified = []
+            if native_objects:
+                verified, _, _ = watermark_findings(page, plan['config'], repeats)
+            images = page.get_image_info(hashes=True, xrefs=True) if any(r['method'] == 'watermark-image' for r in active) else []
+            for region in active:
+                if region['id'] in d['adjusted']:
+                    # Editing a proposal deliberately selects pixel removal at the edited box.
+                    rects.append(d['adjusted'][region['id']])
+                    continue
+                if region['method'] not in ('watermark-text', 'watermark-image'):
+                    rects.append(region['rect'])
+                    continue
+                # Keep areas cancel the whole object, including areas only partly covered.
+                if any(overlap(region['rect'], k) > 0 for k in keep):
+                    continue
+                if region['method'] == 'watermark-text':
+                    matches = [r for r in verified if '_operation' in r and watermark_rule(r) == region['rule']
+                               and all(abs(a-b) < 1e-7 for a,b in zip(r['rect'],region['rect']))]
+                else:
+                    matches = []
+                    excluded = {tuple(r['_operation']) for r in objects}
+                    for info in images:
+                        if info['digest'].hex() != region['matched'] or not all(
+                                abs(a-b) < 1e-7 for a,b in zip(normalized(info['bbox'],page),region['rect'])):
+                            continue
+                        match = w.image_plan(page, info, excluded)
+                        if match is not None:
+                            matches.append(match)
+                            excluded.add(tuple(match['_operation']))
+                if not matches:
+                    raise ValueError('Watermark removal could not be verified. Find again or keep this proposal.')
+                objects.extend(matches)
+            im = cleaned_image(page, rects, keep, out["fill"], drawn, objects)
             dest = public.new_page(width=page.rect.width, height=page.rect.height)
             dest.insert_image(dest.rect, stream=encode_page(im, out["quality"]))
             if out["searchable"]:

@@ -8,7 +8,7 @@ const STORE = "pdfscan.session.v3";
 const MAX_FILES = 50;
 const TOGGLES = [["case", "caseSensitive", false], ["flexible", "flexible", true], ["ocr", "ocr", true],
   ["email", "email", false], ["phone", "phone", false], ["cards", "cards", false], ["ids", "ids", false],
-  ["auto-logos", "autoLogos", false], ["urls", "urls", false], ["qr", "qr", false]];
+  ["auto-logos", "autoLogos", false], ["urls", "urls", false], ["qr", "qr", false], ["watermarks", "watermarks", false]];
 const RULE_INPUTS = ["targets", "scope", "languages", "preset", ...TOGGLES.map(x => x[0])];
 const emptyDecisions = () => ({ignored: [], manual: [], protected: [], removePages: [], keepPages: [], adjusted: {}});
 const MM = 25.4 / 72; // points to millimetres
@@ -362,6 +362,7 @@ function groupLabel(d) {
   if (r === "visual:qr") return t("g.qr");
   if (r.startsWith("visual:reference")) return t("g.reference");
   if (r.startsWith("visual:")) return t("g.logo");
+  if (r.startsWith("watermark:")) return t("g.watermark." + r.split(":")[1]);
   if (r.startsWith("image:")) return d.heuristic ? t("g.crest") : t("g.image");
   if (r.startsWith("exam:")) return t("g.scanCrest");
   return d.label;
@@ -601,7 +602,7 @@ function renderReview() {
   (pr?.detections || []).forEach((d, i) => {
     const restored = state.decisions.ignored.includes(d.id);
     const target = {kind: "det", id: d.id};
-    const title = d.method === "image-match" || !d.matched ? groupLabel(d) : d.matched;
+    const title = ["image-match", "watermark-image"].includes(d.method) || !d.matched ? groupLabel(d) : d.matched;
     const meta = [methodLabel(d.method), d.approximate ? t("close", {read: d.read}) : "", d.confidence ? t("similar", {n: Math.round(d.confidence * 100)}) : "", d.heuristic ? t("guess") : "",
       state.decisions.adjusted[d.id] ? t("edit.adjusted") : ""].filter(Boolean).join(" · ");
     items.append(el("li", {class: (restored ? "restored" : "") + (isSelected(target) ? " selected" : ""), dataset: {item: d.id}, onmouseenter: () => hot(d.id, true), onmouseleave: () => hot(d.id, false)},
@@ -1006,7 +1007,7 @@ function selectedInfo() {
     const f = findDetection(s.id);
     if (!f) return null;
     return {target: s, page: f.page, rect: rectOf(f.d), d: f.d, letter: letter(f.index),
-      label: f.d.method === "image-match" || !f.d.matched ? groupLabel(f.d) : f.d.matched, group: groupLabel(f.d), size: members(s).length};
+      label: ["image-match", "watermark-image"].includes(f.d.method) || !f.d.matched ? groupLabel(f.d) : f.d.matched, group: groupLabel(f.d), size: members(s).length};
   }
   const r = state.decisions[s.kind]?.[s.index];
   if (!r) return null;

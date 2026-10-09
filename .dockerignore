@@ -21,3 +21,6 @@ github-files-to-move
 .claude
 .vscode
 .idea
+docs/detection-changes.md
+docs/detection-feature-map.md
+docs/pdfscan-repository-handoff.md

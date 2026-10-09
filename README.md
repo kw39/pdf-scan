@@ -18,7 +18,7 @@ Take the private details out of a PDF on your own computer. PDF Scan finds names
 
 | | |
 | --- | --- |
-| **Find** | Your words and names (whole words, any case, with or without punctuation, Traditional or Simplified forms), on typed pages and on scans, including text inside ruled tables and pages scanned sideways or upside down. OCR tolerates small reading errors and labels those as close matches for you to check. Opt in to email addresses, phone numbers (including spaced formats such as `+852 2345 6789`), payment card numbers (Luhn-checked), ID numbers (HKID, Taiwan, mainland China and US SSN, all checksum-validated), web links and link areas, QR codes, logos, or a specific logo you upload. |
+| **Find** | Your words and names (whole words, any case, with or without punctuation, Traditional or Simplified forms), on typed pages and on scans, including text inside ruled tables and pages scanned sideways or upside down. OCR tolerates small reading errors and labels those as close matches for you to check. Opt in to email addresses, phone numbers (including spaced formats such as `+852 2345 6789`), payment card numbers (Luhn-checked), ID numbers (HKID, Taiwan, mainland China and US SSN, all checksum-validated), web links and link areas, QR codes, logos, a specific logo you upload, or independently removable watermarks. |
 | **Review** | Each found group gets its own highlighter colour on the page and in the list. Keep a single match or a whole group, draw extra areas to remove or keep, leave pages out, and undo or redo any change. A page rail shows how many areas each page has. |
 | **Adjust** | Select any box to move it, resize it with its grips, or type its exact position and size in millimetres. Apply a change to that box only, or to every match in its group: widen the box around one client name and every match of it on other pages follows, in proportion to its size. |
 | **Compare** | Original, Compare (drag the divider) and Result views. On the result, dashed outlines show exactly where something was removed. The export panel tracks which result pages you have looked at. |
@@ -92,9 +92,43 @@ Any change after a preview marks it out of date, and export always uses the exac
 - **Web links** finds printed URLs and clickable link areas. Links are never opened.
 - **QR codes** are found by their finder patterns; their contents are never decoded.
 - **Pick image** (page tool) selects an embedded image; Find then marks every identical copy.
+- **Watermarks** is off by default. Turn it on to find separate text watermarks using the wording you enter above, plus recognised scanner-app and website captions. With this option on, picked image watermarks use object removal when it can be verified. See the review rules below.
 - **Document type: Exam or test paper** is an optional mode for schools. It also suggests crests next to headings and instruction or cover pages. Check these carefully.
 
 The default PP-OCR reader handles English and Chinese together. If its models are missing, PDF Scan falls back to Tesseract; to add a Tesseract language, put its official `.traineddata` file in `.runtime/tessdata` and use its code in a settings file.
+
+### Removing watermarks without covering questions
+
+1. On **Find**, enable **Watermarks**. For school or company wording, enter the
+   complete watermark text in **Words and names**, one spelling per line. Known
+   scanner captions such as CamScanner and website labels are recognised without
+   adding a text target. Use **Pick image** for an embedded image watermark.
+2. Run **Find**, then review proposals labelled **Separate watermark object** or
+   **Separate image object**. PDF Scan verifies that removing an independent text
+   paint or image/Form XObject leaves other visible text and graphics unchanged.
+   A watermark inside a form split over several text operations is supported when
+   the complete form can be removed independently.
+3. Build the preview and compare the questions, diagrams and tables underneath.
+   **Keep**, group controls, undo/redo and normal reviewed export still apply.
+
+A **Keep area** touching an object watermark keeps that entire object. Moving or
+resizing its proposal deliberately switches to filling the edited rectangle; reset
+its box to return to object removal. Drawn removals still use white or black fill.
+An unchanged object proposal removes the watermark itself, without filling its
+bounding box, even when black fill is selected. Searchable exports read the cleaned
+pixels, so suppressed watermark text is not copied from the original PDF.
+
+For flattened scans, OCR can propose removing a recognised scanner/domain caption
+only in an isolated white page margin. Broad text watermarks blended through scan
+content, mixed forms containing useful questions/graphics, unknown repeated
+publisher labels, PDF text clipping masks and unsupported objects stay intact with review warnings. Detection
+can miss marks; inspect every page. Watermarks alone do not cause page removal.
+Normal occurrences of your entered words still produce ordinary text-box proposals.
+
+For CLI or saved rules, add `"watermarks": true` (see
+[examples/watermarks.json](examples/watermarks.json)). Existing rules without it
+remain off. Use watermark plans with the updated engine; older installations do
+not implement the new object-removal methods.
 
 ## OCR accuracy
 
@@ -171,7 +205,7 @@ tests/          Engine, server and visual regression tests
 examples/       Example rules and review decisions
 scripts/        OCR setup and allowlisted source release
 benchmarks/     Synthetic scanned-document OCR benchmark
-docs/           README screenshots (fictional sample only)
+docs/screenshots/ Fictional sample screenshots for this guide
 LICENSES/       Licence texts for bundled third-party data
 .runtime/       Private generated files, never committed
 ```

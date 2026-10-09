@@ -153,3 +153,24 @@ def test_startup_removes_leftover_sessions(tmp_path):
     (stale/"source.pdf").write_bytes(b"%PDF-1.4")
     App(tmp_path,0)
     assert not stale.exists()
+
+
+def test_watermark_preview_keep_and_exact_export(server, tmp_path):
+    import pymupdf as fitz
+    from test_watermarks import document, samples
+    src=tmp_path/'watermark.pdf';reference,original=document(src)
+    job=server[0].create(src.read_bytes(),'Fictional watermark.pdf')
+    prefix='/api/jobs/'+job['id']
+    code,plan=call(server,prefix+'/detect','POST',{'config':{'watermarks':True,'text':['EXAMPLE SCHOOL'],'ocr':False}})
+    assert code==200 and plan['pages'][0]['detections'][0]['method']=='watermark-text'
+    mark=plan['pages'][0]['detections'][0]['id']
+    _,preview=call(server,prefix+'/preview','POST',{'planHash':plan['planHash'],'decisions':{}})
+    code,data=call(server,prefix+'/export','POST',{'reviewed':True,'sha256':preview['sha256']})
+    assert code==200
+    saved=tmp_path/'export.pdf';saved.write_bytes(data);assert samples(saved)==reference
+    _,kept=call(server,prefix+'/preview','POST',{'planHash':plan['planHash'],'decisions':{'ignored':[mark]}})
+    assert kept['sha256']!=preview['sha256']
+    assert call(server,prefix+'/export','POST',{'reviewed':True,'sha256':preview['sha256']})[0]==400
+    code,data=call(server,prefix+'/export','POST',{'reviewed':True,'sha256':kept['sha256']})
+    assert code==200
+    saved.write_bytes(data);assert samples(saved)==original

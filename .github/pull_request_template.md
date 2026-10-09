@@ -7,5 +7,9 @@
 - [ ] New interface text added in English and Traditional Chinese (`pdfscan/web/i18n.js`)
 - [ ] CHANGELOG.md updated
 
+## Compatibility
+- [ ] Existing detection/decision/preview/export contracts are preserved, or changes and compatibility are explained
+- [ ] Existing UI tokens/components are reused; intentional design changes are recorded in DESIGN.md (or no UI change)
+
 ## Privacy
 - [ ] No real documents, OCR caches, reports or screenshots of private pages are included

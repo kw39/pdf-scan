@@ -35,3 +35,6 @@ AGENTS.md
 Thumbs.db
 *.swp
 *.swo
+docs/detection-changes.md
+docs/detection-feature-map.md
+docs/pdfscan-repository-handoff.md

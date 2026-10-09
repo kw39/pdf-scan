@@ -3,6 +3,8 @@
    this file holds English for text written by app.js, and the full Traditional Chinese set. */
 (() => {
   const en = {
+    "g.watermark.text": "Text watermarks", "g.watermark.scanner": "Scanner-app watermarks", "g.watermark.website": "Website watermarks",
+    "m.watermark-text": "Separate watermark object", "m.watermark-image": "Separate image object", "m.watermark-ocr": "Isolated scanned footer",
     "pages.one": "1 page", "pages.other": "{n} pages",
     "areas.one": "1 area", "areas.other": "{n} areas",
     "pagesOn.one": "on 1 page", "pagesOn.other": "on {n} pages",
@@ -103,6 +105,10 @@
   };
 
   const zh = {
+    "chip.watermarks": "浮水印",
+    "find.watermarks.hint": "浮水印：在上方輸入其文字。獨立文字及選取的圖片可移除而不遮蓋底下內容。與內容混合的浮水印會保留供檢查。調整浮水印框會改為填滿該範圍。",
+    "g.watermark.text": "文字浮水印", "g.watermark.scanner": "掃描程式浮水印", "g.watermark.website": "網站浮水印",
+    "m.watermark-text": "獨立浮水印物件", "m.watermark-image": "獨立圖片物件", "m.watermark-ocr": "獨立掃描頁尾",
     // Page text
     "skip": "跳至內容", "lang.aria": "Switch to English", "theme.aria": "切換深淺色", "clear": "關閉並刪除", "clear.tip": "關閉文件並刪除本機檔案",
     "tab.find": "尋找", "tab.review": "檢查", "tab.export": "匯出",
@@ -229,6 +235,7 @@
 
   // Common messages from the local service, shown in Chinese when that language is selected.
   const zhServer = {
+    "Watermark removal could not be verified. Find again or keep this proposal.": "無法確認浮水印可安全移除。請重新尋找或保留這項建議。",
     "Document session is unavailable. Open the PDF again.": "文件工作階段已失效，請重新開啟 PDF。",
     "Choose a PDF file.": "請選擇 PDF 檔案。", "This file is not a PDF.": "這個檔案不是 PDF。",
     "Use an unencrypted PDF with 1-500 pages.": "請使用沒有加密、1 至 500 頁的 PDF。",
@@ -248,6 +255,11 @@
     "Upload the reference logo before finding targets.": "請先上載參考標誌再尋找。",
   };
   const zhWarnings = [
+    [/^.* can be removed as a separate PDF object;.*$/, "可移除獨立浮水印物件。請檢查預覽及底下內容。"],
+    [/^.* can be removed from an isolated white scan margin;.*$/, "可移除獨立白色頁邊的掃描浮水印。請檢查頁尾。"],
+    [/^(?:Text watermark|Scanner-app watermark|Website watermark|Possible publisher watermark) retained for manual review:.*$/, "浮水印已保留，請手動檢查。"],
+    [/^Possible .* retained in scan\/content;.*$/, "可能有浮水印與掃描內容混合，已保留供手動檢查。"],
+    [/^Watermark objects retained:.*$/, "無法確認浮水印可安全移除，已保留供手動檢查。"],
     [/^OCR disabled/, "未開啟 OCR：圖片中的文字沒有檢查。"],
     [/^Scanned page/, "掃描頁：請仔細檢查 OCR 結果和圖案。"],
     [/^Large page/, "頁面較大，以較低解像度處理。"],

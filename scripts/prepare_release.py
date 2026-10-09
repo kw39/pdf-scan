@@ -13,7 +13,7 @@ from pdfscan import __version__  # noqa: E402
 ROOT_FILES={"README.md","LICENSE","SECURITY.md","THIRD_PARTY_NOTICES.md","CONTRIBUTING.md","CHANGELOG.md",
             "DESIGN.md","CODE_OF_CONDUCT.md","pyproject.toml","requirements.txt","MANIFEST.in",".gitignore",
             ".dockerignore",".gitattributes","Setup.ps1","Start.ps1","start.cmd"}
-PUBLIC_DIRS={"pdfscan","tests","examples","scripts",".github","docs","benchmarks","LICENSES"}
+PUBLIC_DIRS={"pdfscan","tests","examples","scripts",".github","docs/screenshots","benchmarks","LICENSES"}
 TEXT={".py",".html",".css",".js",".json",".yml",".yaml",".ps1",".md",".svg",".txt"}
 BINARY={".woff2",".png"}
 EXTENSIONS=TEXT|BINARY
