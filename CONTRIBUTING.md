@@ -19,7 +19,7 @@ python -m pdfscan serve --open-browser
 
 ```bash
 python -m pytest -q --basetemp=.runtime/test-run
-python scripts/prepare_release.py --audit-only
+python scripts/prepare_release.py --audit-only --audit-git
 ```
 
 - Add a test for every engine or server change. Tests generate their own fictional PDFs (see `tests/test_features.py`).
@@ -29,6 +29,26 @@ python scripts/prepare_release.py --audit-only
 - Interface changes follow [DESIGN.md](DESIGN.md): its tokens, one font family, sentence case, keyboard access, at least 44px touch targets, and reduced motion. Add English and Traditional Chinese text to `pdfscan/web/i18n.js`.
 - Keep dependencies to what is in `pyproject.toml`. The browser page loads nothing from the internet.
 - Add a line under "Unreleased" in [CHANGELOG.md](CHANGELOG.md).
+
+## Public files and publication checks
+
+Only files listed in `scripts/public-files.txt` belong in the public repository and
+source ZIP. Review additions for their purpose, private data and metadata before
+adding them to this list. Keep local assistant notes, integration planning, real
+documents, caches and build output private. Use fictional examples and screenshots.
+
+After setup, install the local commit and push checks:
+
+```bash
+python scripts/prepare_release.py --install-hooks
+```
+
+The commit check audits staged content; the push check audits the complete history
+being pushed. CI checks tracked files and built package contents. After building,
+run `python scripts/prepare_release.py --audit-only --dist-dir dist` before sharing
+archives. These checks require review when an approved file changes; they do not
+replace reading the diff. Additional private deny terms can be stored one per line
+in ignored `.runtime/publication-deny-terms.txt`.
 
 ## Licence
 

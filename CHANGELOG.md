@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Publication uses an explicit reviewed file list, local commit/push checks and CI audits of tracked files and built packages.
 - Local assistant notes and internal planning documents are excluded from public source releases and package contents.
 - Watermark verification retains PDF text clipping masks instead of suppressing them, preventing object removal from altering unrelated graphics. Synthetic parser and pixel-preservation regressions cover the unsafe case.
 

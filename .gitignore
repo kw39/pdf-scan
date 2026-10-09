@@ -38,3 +38,7 @@ Thumbs.db
 docs/detection-changes.md
 docs/detection-feature-map.md
 docs/pdfscan-repository-handoff.md
+
+# Documentation is private by default; only reviewed sample screenshots are public
+/docs/*
+!/docs/screenshots/

@@ -8,3 +8,4 @@ include Setup.ps1 Start.ps1 start.cmd
 exclude AGENTS.md CLAUDE.md
 prune docs
 recursive-include docs/screenshots *.png
+include scripts/public-files.txt
