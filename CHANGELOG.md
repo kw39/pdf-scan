@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Selectable-text ID boxes use the matched characters and visible ink, avoiding oversized font-height removals. Horizontal typed-word boxes keep a smaller left margin; scan coverage margins are preserved.
 - Dense pages no longer block verification of independently removable watermark forms; individual text probing stays bounded and unverified content remains intact.
 - Publication uses an explicit reviewed file list, local commit/push checks and CI audits of tracked files and built packages.
 - Local assistant notes and internal planning documents are excluded from public source releases and package contents.

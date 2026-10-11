@@ -174,3 +174,106 @@ def test_upload_rejects_non_pdf(server):
     code, body, _ = call(server, "/api/upload", "POST", raw=b"hello world, not a pdf",
                          headers={"Content-Type": "application/pdf", "X-Filename": "fake.pdf"})
     assert code == 400 and "not a PDF" in body["error"]
+
+
+
+@pytest.mark.parametrize('value', ['A123456(3)', 'A123456789', '11010519491231002X', '123-45-6789'])
+def test_native_id_fitting_preserves_close_number_rows(tmp_path, value):
+    path = tmp_path / 'tight-id.pdf'
+    with fitz.open() as doc:
+        page = doc.new_page()
+        page.insert_text((50, 75), '313 313 313', fontsize=18)
+        page.insert_text((50, 120), '321 321 321', fontsize=18)
+        reference = page.get_pixmap(dpi=200, alpha=False).samples
+        page.insert_text((50, 100), value, fontsize=24)
+        doc.save(path)
+    plan = detect(path, {'ids': True, 'ocr': False})
+    marks = plan['pages'][0]['detections']
+    assert len(marks) == 1 and marks[0]['matched'] == value
+    assert '_parts' not in json.dumps(plan)
+    output = tmp_path / 'clean.pdf'
+    apply(path, plan, {}, output)
+    with fitz.open(output) as doc:
+        # Target gone, both neighboring rows pixel-identical to an independent reference.
+        assert fitz.Pixmap(doc, doc[0].get_images()[0][0]).samples == reference
+    apply(path, plan, {'ignored': [marks[0]['id']]}, tmp_path / 'kept.pdf')
+    with fitz.open(path) as original, fitz.open(tmp_path / 'kept.pdf') as kept:
+        assert fitz.Pixmap(kept, kept[0].get_images()[0][0]).samples == original[0].get_pixmap(dpi=200, alpha=False).samples
+
+
+
+def test_native_id_substrings_keep_enclosing_word_labels_and_separate_copies(tmp_path):
+    path = make_pdf(tmp_path / 'embedded-ids.pdf', ['Ref:A123456(3)/A123456(3):tail'])
+    plan = detect(path, {'ids': True, 'ocr': False})
+    marks = plan['pages'][0]['detections']
+    assert [mark['matched'] for mark in marks] == ['A123456(3)', 'A123456(3)']
+    assert marks[0]['id'] != marks[1]['id']
+    assert marks[0]['rect'][2] < marks[1]['rect'][2]
+    output = tmp_path / 'clean.pdf'
+    apply(path, plan, {}, output)
+    with fitz.open(path) as original, fitz.open(output) as clean:
+        before_pix = original[0].get_pixmap(dpi=200, alpha=False)
+        after_pix = fitz.Pixmap(clean, clean[0].get_images()[0][0])
+        before = Image.frombytes('RGB', (before_pix.width, before_pix.height), before_pix.samples)
+        after = Image.frombytes('RGB', (after_pix.width, after_pix.height), after_pix.samples)
+        def pixel_box(box):
+            return (int(box.x0 * 200 / 72), int(box.y0 * 200 / 72),
+                    int(box.x1 * 200 / 72 + .999), int(box.y1 * 200 / 72 + .999))
+        for label in ('Ref', 'tail'):
+            box = pixel_box(original[0].search_for(label)[0])
+            assert before.crop(box).tobytes() == after.crop(box).tobytes()
+        for box in original[0].search_for('A123456(3)'):
+            assert after.crop(pixel_box(box)).convert('L').getextrema() == (255, 255)
+
+
+@pytest.mark.parametrize('turn', [90, 180, 270])
+def test_native_id_sideways_bounds_remain_complete(tmp_path, turn):
+    path = tmp_path / 'turned-id.pdf'
+    with fitz.open() as doc:
+        page = doc.new_page()
+        page.insert_text((300, 350), 'A123456(3)', fontsize=20, rotate=turn)
+        doc.save(path)
+    plan = detect(path, {'ids': True, 'ocr': False})
+    assert found(plan, 'id') == ['A123456(3)']
+    output = tmp_path / 'clean.pdf'
+    apply(path, plan, {}, output)
+    with fitz.open(output) as doc:
+        pixels = fitz.Pixmap(doc, doc[0].get_images()[0][0])
+        assert Image.frombytes('RGB', (pixels.width, pixels.height), pixels.samples).getextrema() == ((255, 255),) * 3
+
+
+
+@pytest.mark.parametrize('font', ['helv', 'hebo', 'heit', 'hebi', 'tiro', 'tibi'])
+@pytest.mark.parametrize('size', [10, 24, 40])
+def test_tight_native_id_margin_covers_all_font_ink(tmp_path, font, size):
+    path = tmp_path / 'id-font.pdf'
+    with fitz.open() as doc:
+        page = doc.new_page()
+        page.insert_text((50, 100), 'A123456(3)', fontsize=size, fontname=font)
+        doc.save(path)
+    plan = detect(path, {'ids': True, 'ocr': False})
+    assert found(plan, 'id') == ['A123456(3)']
+    output = tmp_path / 'clean.pdf'
+    apply(path, plan, {}, output)
+    with fitz.open(output) as doc:
+        pix = fitz.Pixmap(doc, doc[0].get_images()[0][0])
+        assert Image.frombytes('RGB', (pix.width, pix.height), pix.samples).getextrema() == ((255, 255),) * 3
+
+
+
+def test_native_id_mixed_font_fragments_are_removed_completely(tmp_path):
+    path = tmp_path / 'mixed-font-id.pdf'
+    with fitz.open() as doc:
+        page = doc.new_page()
+        x = 50
+        for text, size in [('A', 24), ('123456', 16), ('(3)', 12)]:
+            page.insert_text((x, 100), text, fontsize=size)
+            x += fitz.get_text_length(text, fontsize=size)
+        doc.save(path)
+    plan = detect(path, {'ids': True, 'ocr': False})
+    assert found(plan, 'id') == ['A123456(3)']
+    output = tmp_path / 'clean.pdf'
+    apply(path, plan, {}, output)
+    with fitz.open(output) as doc:
+        pix = fitz.Pixmap(doc, doc[0].get_images()[0][0])
+        assert Image.frombytes('RGB', (pix.width, pix.height), pix.samples).getextrema() == ((255, 255),) * 3

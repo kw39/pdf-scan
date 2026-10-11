@@ -337,6 +337,36 @@ def exact_native_box(page, line, pieces, start, end, estimate):
     best = max(hits, key=lambda h: (h & estimate).get_area())
     return best | estimate if best.width < estimate.width * .5 else best
 
+def exact_pattern_box(page, line, spans, match, fallback):
+    """Locate a native ID substring without including its enclosing word label."""
+    estimate = fitz.Rect()
+    for word, (a, b) in zip(line, spans):
+        if a >= match.end() or b <= match.start():
+            continue
+        box = fitz.Rect(word[:4])
+        widths = char_widths(word[4])
+        total = sum(widths) or 1.0
+        lo, hi = max(0, match.start() - a), min(len(widths), match.end() - a)
+        if box.width >= box.height:
+            estimate |= fitz.Rect(box.x0 + box.width * sum(widths[:lo]) / total, box.y0,
+                                  box.x0 + box.width * sum(widths[:hi]) / total, box.y1)
+        else:
+            estimate |= box
+    margin = max(fallback.height, 2)
+    clip = fallback + (-margin, -margin, margin, margin)
+    try:
+        hits = [hit for hit in page.search_for(match.group(0), clip=clip) if hit.intersects(fallback)]
+    except Exception:
+        return fallback
+    if not hits:
+        return fallback
+    best = max(hits, key=lambda hit: (hit & estimate).get_area())
+    # A search can return separate rectangles for mixed-font fragments. Retain
+    # the complete word bounds unless this rectangle contains the entire ID.
+    compact = lambda value: re.sub(r"\s+", "", value).casefold()
+    return best if compact(match.group(0)) in compact(page.get_textbox(best)) else fallback
+
+
 def match_text(words, page, report, sha, c, method):
     # Block/line IDs describe logical text order, including rotated native text.
     # No unrotated-y threshold is used to split displayed lines.
@@ -422,9 +452,13 @@ def match_text(words, page, report, sha, c, method):
                 box = fitz.Rect(picked[0][:4])
                 for w in picked[1:]:
                     box |= fitz.Rect(w[:4])
+                native_id = label == "id" and method in ("text", "decoded-text")
+                if native_id:
+                    box = exact_pattern_box(page, line, spans, m, box)
                 rect = normalized(box, page, .002)
                 if in_scope(rect, c["scope"]):
-                    add_detection(report, sha, rect, "pattern:" + label, PATTERN_LABELS[label], method, value)
+                    extra = {"_parts": [normalized(box, page)]} if native_id else {}
+                    add_detection(report, sha, rect, "pattern:" + label, PATTERN_LABELS[label], method, value, **extra)
 
 def digits(value):
     return re.sub(r"\D", "", value)
@@ -605,7 +639,32 @@ def detect(source, config, *, cache_dir=None, tessdata=None, force_ocr=False, lo
                 for d in pr["detections"]:
                     parts = d.pop("_parts", None)
                     if parts:
-                        d["rect"] = p.snap_to_ink(gray, d["rect"], parts)
+                        if d["method"] in ("text", "decoded-text") and d["rule"] == "pattern:id":
+                            # Native ID characters have exact bounds; one pixel
+                            # covers their antialiased edges without a tall font box.
+                            d["rect"] = p.snap_to_ink(gray, d["rect"], parts, pad=1)
+                            # Italic glyphs can protrude beyond native advance bounds.
+                            # Follow only ink touching the left edge, with a bounded reach.
+                            rect = d["rect"]
+                            left = max(0, math.floor(rect[0] * gray.width))
+                            top = max(0, math.floor(rect[1] * gray.height))
+                            bottom = min(gray.height, math.ceil(rect[3] * gray.height))
+                            reach = max(1, int(max(q[3] - q[1] for q in parts) * gray.height * .2))
+                            stop = max(0, left - reach)
+                            while left > stop and gray.crop((left, top, left + 1, bottom)).getextrema()[0] < 255:
+                                left -= 1
+                            rect[0] = min(rect[0], left / gray.width)
+                        else:
+                            d["rect"] = p.snap_to_ink(gray, d["rect"], parts)
+                        if d["method"] == "text" and d["rule"].startswith("text:"):
+                            # Trim only empty native-text padding. Ink in the margin
+                            # (including italic overhangs) retains the full old bounds.
+                            rect = d["rect"]
+                            left = rect[0] + max(0, .002 - 1 / gray.width)
+                            strip = (int(rect[0] * gray.width), int(rect[1] * gray.height),
+                                     int(left * gray.width), min(gray.height, math.ceil(rect[3] * gray.height)))
+                            if strip[2] > strip[0] and strip[3] > strip[1] and gray.crop(strip).getextrema() == (255, 255):
+                                rect[0] = left
                         d["id"] = fingerprint({"source": sha, "page": pr["number"], "rule": d["rule"],
                                                "rect": [round(v, 5) for v in d["rect"]]})[:24]
             if c["watermarks"]:

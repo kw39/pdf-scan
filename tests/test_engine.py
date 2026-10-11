@@ -277,3 +277,22 @@ def test_drawn_area_inside_keep_area_is_still_removed(document,tmp_path):
     with fitz.open(tmp_path/"clean.pdf") as doc:
         im=Image.open(io.BytesIO(doc[0].get_pixmap(dpi=200,alpha=False).tobytes("png"))).convert("L")
         assert im.crop((int(.21*im.width),int(.21*im.height),int(.39*im.width),int(.29*im.height))).getextrema()==(0,0)
+
+
+
+@pytest.mark.parametrize('font', ['helv', 'hebo', 'heit', 'hebi', 'tiro', 'tibi'])
+def test_native_word_smaller_left_margin_preserves_complete_glyphs(tmp_path, font):
+    path = tmp_path / 'left-margin.pdf'
+    with fitz.open() as doc:
+        page = doc.new_page()
+        page.insert_text((50, 100), 'Start form', fontsize=24, fontname=font)
+        left = page.get_text('words')[0][0]
+        doc.save(path)
+    plan = detect(path, {'text': ['Start form'], 'ocr': False})
+    mark = plan['pages'][0]['detections'][0]
+    assert (left / 595 - mark['rect'][0]) * 595 * 200 / 72 == pytest.approx(1, abs=.01)
+    output = tmp_path / 'clean.pdf'
+    apply(path, plan, {}, output)
+    with fitz.open(output) as doc:
+        pixels = fitz.Pixmap(doc, doc[0].get_images()[0][0])
+        assert Image.frombytes('RGB', (pixels.width, pixels.height), pixels.samples).getextrema() == ((255, 255),) * 3
